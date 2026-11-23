@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panorama de Propostas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+[hidden]{display:none!important}
+/* Layout: ferramenta de trabalho. Cabeçalho, panorama em colunas rolável (uma por proposta), planilha e cálculos abaixo. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --surface2:#eaeeed; --line:#d3dad8; --fg:#1b2523; --muted:#5d6b68;
+  --accent:#1f6f66; --accent-fg:#ffffff; --accent-soft:#dcefeb;
+  --ok:#1d7a46; --ok-soft:#dff2e6; --bad:#b3341f; --bad-soft:#f9e1dc; --warn:#8a5a00; --warn-soft:#fbefd2;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121817; --surface:#1a2220; --surface2:#222c29; --line:#33403d; --fg:#e4ebe9; --muted:#97a6a2;
+  --accent:#5fc2b4; --accent-fg:#0b1513; --accent-soft:#1c3a35;
+  --ok:#62c98a; --ok-soft:#18331f; --bad:#f08b78; --bad-soft:#3b1f1a; --warn:#e6b85c; --warn-soft:#3a2d12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121817; --surface:#1a2220; --surface2:#222c29; --line:#33403d; --fg:#e4ebe9; --muted:#97a6a2;
+  --accent:#5fc2b4; --accent-fg:#0b1513; --accent-soft:#1c3a35;
+  --ok:#62c98a; --ok-soft:#18331f; --bad:#f08b78; --bad-soft:#3b1f1a; --warn:#e6b85c; --warn-soft:#3a2d12; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1280px;margin:0 auto}
+h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-.01em}
+h2{font-size:16px;margin:0 0 12px;font-weight:600}
+h3{font-size:12px;margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+.top p{margin:2px 0 0;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:500}
+button.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:4px 8px}
+button.ghost:hover{color:var(--bad);border-color:transparent}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:5px 7px;min-width:0}
+textarea{width:100%;resize:vertical}
+section{margin-bottom:36px}
+.strip{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:150px}
+.chip b{display:block;font-family:var(--mono);font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+.chip span{color:var(--muted);font-size:12px}
+.scroller{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;align-items:flex-start}
+.card{flex:0 0 clamp(340px,calc((100% - 28px)/3),460px);min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.card-head .nome{flex:1;font-weight:600;font-size:15px}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+.grp{margin-top:12px}
+.grp-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:3px;margin-bottom:4px}
+.grp-h .sub{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 52px 86px 92px 24px;gap:4px;align-items:center;padding:3px 0}
+.row.so{grid-template-columns:minmax(0,1fr) 52px 24px}
+.row.hdr{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.row input{width:100%}
+.row .num{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.row .tot{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.sub-note{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:-1px 0 3px}
+.add{margin-top:4px;font-size:12px;padding:3px 8px;color:var(--accent)}
+.card-foot{margin-top:14px;border-top:2px solid var(--fg);padding-top:8px;display:flex;justify-content:space-between;align-items:baseline}
+.card-foot b{font-family:var(--mono);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
+.alerts{margin:10px 0 0;padding:0;list-style:none;font-size:12px;color:var(--warn)}
+.alerts li{background:var(--warn-soft);padding:4px 8px;border-radius:5px;margin-top:4px}
+.nota{margin-top:10px;font-size:12px;color:var(--muted)}
+.params{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+.params label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.params .just{flex:1 1 320px}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface2)}
+td.m{font-family:var(--mono);font-size:13px}
+tr.total td{font-weight:600;border-top:2px solid var(--fg);border-bottom:none}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:16px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:none}
+.kv b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.big{font-family:var(--mono);font-size:24px;font-weight:500;margin:4px 0;font-variant-numeric:tabular-nums}
+.res .st{font-size:13px;font-weight:600}
+.res.ok .st{color:var(--ok)} .res.bad .st{color:var(--bad)}
+.res.ok{border-left:4px solid var(--ok)} .res.bad{border-left:4px solid var(--bad)}
+.msg{font-size:13px;color:var(--muted);margin:8px 0}
+.warnbox{background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px 16px;overflow:auto;z-index:20}
+.modal.open{display:flex}
+#rep{display:none;position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:30;padding:max(16px,env(safe-area-inset-top,0px)) 16px 32px}
+#rep.open{display:block}
+.rep-in{max-width:900px;margin:0 auto}
+.rep-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rep-opts{display:grid;gap:10px;margin-bottom:16px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.rep-opts label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.rep-opts label.chk{flex-direction:row;align-items:center;gap:8px}
+.rep-opts textarea,.rep-opts input[type=text]{width:100%}
+.doc{background:#fff;color:#111;padding:28px 32px;border-radius:6px;border:1px solid var(--line);font-family:var(--sans)}
+.doc h1{font-size:20px;margin:0 0 4px}
+.doc .emp{font-size:15px;font-weight:600;margin:0 0 2px}
+.doc .ref{font-size:13px;color:#444;margin:0 0 10px}
+.doc .msg{font-size:13px;white-space:pre-wrap;margin:0 0 14px}
+.doc h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#333;margin:16px 0 6px}
+.doc table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.doc th,.doc td{border:1px solid #999;padding:5px 7px;vertical-align:top;word-wrap:break-word}
+.doc th{background:#eee;text-align:left;font-weight:600}
+.doc .n{text-align:right;width:84px}
+.doc .nn{width:36px;text-align:center}
+.doc .v{width:120px}
+.doc .sg{margin-top:18px;font-size:13px}
+.doc .sg div{margin:10px 0}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff!important}
+  body>*:not(#rep){display:none!important}
+  #rep{position:static!important;display:block!important;padding:0!important;background:#fff!important;overflow:visible!important}
+  .no-print{display:none!important}
+  .doc{border:0!important;padding:0!important}
+  .doc tr{break-inside:avoid}
+}
+.modal-in{background:var(--surface);border-radius:12px;padding:18px;width:min(560px,100%);margin-top:5vh;border:1px solid var(--line)}
+.modal-in .f{display:flex;flex-direction:column;gap:3px;margin:10px 0;font-size:12px;color:var(--muted)}
+.modal-in .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.status{font-size:13px;margin-top:10px;white-space:pre-wrap}
+@media (max-width:520px){.row{grid-template-columns:minmax(0,1fr) 46px 78px 84px 22px}}
+@media (prefers-reduced-motion:no-preference){button{transition:border-color .12s}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Panorama de Propostas</h1>
+      <p>Propostas, itens e totais de cada empresa, com Q1, Q3, IQR, limites, média e mediana calculados na mesma página.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnAdd">Adicionar proposta</button>
+      <button id="btnCsv">Exportar planilha (CSV)</button>
+      <button id="btnReset">Restaurar exemplo</button>
+    </div>
+  </div>
+
+  <section id="s1">
+    <h2>1. Panorama das propostas</h2>
+    <div class="strip" id="strip"></div>
+    <div class="scroller" id="cards"></div>
+  </section>
+
+  <section id="s2">
+    <h2>2. Planilha e cálculos</h2>
+    <div class="params">
+      <label>Limite do RILC (R$)<input id="pLimite" inputmode="decimal" size="12"></label>
+      <label>Método de quartil
+        <select id="pMetodo"><option value="INC">Inclusivo (QUARTIL.INC)</option><option value="EXC">Exclusivo (QUARTIL.EXC)</option></select>
+      </label>
+      <label class="just">Critério e justificativa da escolha entre média e mediana
+        <textarea id="pJust" rows="2" placeholder="Ex.: adotada a média da cesta saneada, conforme a norma de pesquisa de preços aplicável."></textarea>
+      </label>
+    </div>
+    <div id="calc"></div>
+  </section>
+</div>
+
+<div id="rep">
+  <div class="rep-in">
+    <div class="rep-bar no-print">
+      <button class="primary" id="rPrint">Imprimir / salvar em PDF</button>
+      <button id="rCopy">Copiar texto</button>
+      <button id="rCsv">Baixar planilha (CSV)</button>
+      <button id="rClose">Fechar</button>
+    </div>
+    <div class="rep-opts no-print">
+      <label>Título do documento<input type="text" id="rTitulo"></label>
+      <label>Referência (processo, objeto)<input type="text" id="rRef" placeholder="Ex.: Contratação de videomonitoramento, processo nº ..."></label>
+      <label>Mensagem para a empresa<textarea id="rMsg" rows="3"></textarea></label>
+      <label class="chk"><input type="checkbox" id="rVal"> Incluir colunas em branco para a empresa preencher os valores</label>
+    </div>
+    <div class="doc" id="repDoc"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h2 id="mTitle">Adicionar proposta</h2>
+    <div class="f"><label for="mNome">Nome da empresa (opcional, o sistema tenta ler)</label><input id="mNome"></div>
+    <div class="f"><label for="mMod">Modalidade</label>
+      <select id="mMod"><option>Venda</option><option>Comodato</option><option>Locação</option></select></div>
+    <div class="f" id="fileBox"><label for="mFiles">Arquivos da proposta (PDF, imagem ou texto)</label>
+      <input type="file" id="mFiles" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv"></div>
+    <div class="status" id="mStatus"></div>
+    <div class="btns">
+      <button id="mCancel">Fechar</button>
+      <button id="mBlank">Criar em branco</button>
+      <button class="primary" id="mRead">Ler proposta</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== núcleo: dados e cálculo (sem DOM) ===== */
+const GR = [
+  { k: 'comodato', n: 'Equipamentos em comodato', q: 'Qtd', soQtd: true },
+  { k: 'inst',   n: 'Instalação',                    q: 'Qtd' },
+  { k: 'equip',  n: 'Equipamentos e infraestrutura', q: 'Qtd' },
+  { k: 'mensal', n: 'Serviços mensais',              q: 'Meses' }
+];
+const uid = () => Math.random().toString(36).slice(2, 9);
+const r2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+function parseBR(s) {
+  if (typeof s === 'number') return isFinite(s) ? s : 0;
+  s = String(s == null ? '' : s).replace(/R\$|\s/g, '');
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const v = parseFloat(s);
+  return isFinite(v) ? v : 0;
+}
+
+const itemTotal = it => r2((Number(it.qtd) || 0) * (Number(it.unit) || 0));
+const groupTotal = (p, k) => r2(p.itens.filter(i => i.grupo === k).reduce((a, i) => a + itemTotal(i), 0));
+const propTotal = p => r2(p.itens.reduce((a, i) => a + itemTotal(i), 0));
+
+function quant(sorted, p, metodo) {
+  const n = sorted.length;
+  if (!n) return null;
+  if (metodo === 'EXC') {
+    const pos = (n + 1) * p;
+    if (pos < 1 || pos > n) return null;
+    const lo = Math.floor(pos) - 1, hi = Math.ceil(pos) - 1;
+    return sorted[lo] + (pos - Math.floor(pos)) * (sorted[hi] - sorted[lo]);
+  }
+  const pos = (n - 1) * p, lo = Math.floor(pos), hi = Math.ceil(pos);
+  return sorted[lo] + (pos - lo) * (sorted[hi] - sorted[lo]);
+}
+const median = a => {
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+function calc(props, params) {
+  const vals = props.map(p => ({ id: p.id, nome: p.nome, v: propTotal(p) }));
+  const n = vals.length;
+  const sorted = vals.map(x => x.v).sort((a, b) => a - b);
+  const out = { vals, n, sorted };
+  if (n < 2) return out;
+  const q1 = quant(sorted, 0.25, params.metodo), q3 = quant(sorted, 0.75, params.metodo);
+  if (q1 == null || q3 == null) return { ...out, erro: 'O método exclusivo não se aplica a ' + n + ' propostas.' };
+  const iqr = q3 - q1, li = q1 - 1.5 * iqr, ls = q3 + 1.5 * iqr;
+  const tol = 0.005;
+  vals.forEach(x => { x.dentro = x.v >= li - tol && x.v <= ls + tol; });
+  const cesta = vals.filter(x => x.dentro).map(x => x.v);
+  const media = cesta.length ? cesta.reduce((a, b) => a + b, 0) / cesta.length : null;
+  const med = median(cesta);
+  const lim = Number(params.limite) || 0;
+  const mk = v => v == null ? null : { v, dif: v - lim, dentro: v <= lim + tol };
+  const m1 = mk(media), m2 = mk(med);
+  let fav = null;
+  if (m1 && m2) fav = m1.v <= m2.v ? { nome: 'Média', ...m1 } : { nome: 'Mediana', ...m2 };
+  return { ...out, q1, q3, iqr, li, ls, cesta, media: m1, mediana: m2, fav };
+}
+
+function comodatoItens() {
+  const C = (desc, qtd, extra) => Object.assign({ id: uid(), desc, qtd, unit: 0, grupo: 'comodato', origQtd: qtd }, extra || {});
+  return [
+    C('Central de alarme AMT 2018 E Smart', 1),
+    C('Bateria XB 1270 VRLA 12 V 7,0 Ah', 1),
+    C('Sensor ativo IVA 5040 AT Intelbras', 3),
+    C('Caixa de passagem p/ câmeras de CFTV VBOX 1100', 15),
+    C('Gravador digital de vídeo INVD 1016 AM', 1),
+    C('Refletor slim LED 100 W 6500 K autovolt, alumínio', 8),
+    C('Câmera de TV IP bullet VIP 1230 B G2', 15),
+    C('Switch não gerenciável 10P 1000 Mbps S1110G-PA', 3),
+    C('Conversor de mídia KGSD 1120 B WDM Gb', 2),
+    C('HD interno Skyhawk Seagate 6 TB', 1),
+    C('Cabo drop flat 1F BOB 1000 m A2', 1),
+    C('Cordão óptico SC/APC SM 2,0 mm 3 m', 2),
+    C('Conector de fibra óptica de campo SC/UPC', 2),
+    C('Cabo LAN Expert Turbo Link Cat5e UTP 305 m PT CAM EIA/TIA 568', 0, { obs: 'A quantidade está cortada na imagem enviada. Informar a quantidade.' }),
+    C('Mini rack montado 3U 370 MRM 337', 1),
+    C('Rack outdoor 5U 470 mm', 2),
+    C('Cordão óptico 3 m SC/UPC-SC/UPC AM Miljet', 2),
+    C('Cabo PP flexível 500 V 3 × 1,50 mm 100 m PT', 6)
+  ];
+}
+
+function seed() {
+  const I = (desc, qtd, unit, grupo, extra) => Object.assign({ id: uid(), desc, qtd, unit, grupo, origQtd: qtd }, extra || {});
+  const protemaxi = {
+    id: uid(), nome: 'Protemaxi', modalidade: 'Comodato', revisar: false,
+    itens: [
+      ...comodatoItens(),
+      I('Taxa de instalação (entrada)', 1, 5000, 'inst'),
+      I('Mensalidade: câmeras, alarme, iluminação e monitoramento (equipamentos em comodato)', 12, 7000, 'mensal',
+        { obs: 'Monitoramento incluso, conforme informado. A proposta não traz preço por item.' })
+    ],
+    nota: 'Equipamentos cedidos, sem preço próprio: 15 câmeras bullet VIP 1230 B G2, gravador INVD 1016, HD 6 TB, 8 refletores de 100 W, central de alarme AMT 2018 com bateria e 3 sensores IVA 5040, 3 switches 10 portas, conversores de mídia e fibra óptica, racks, 15 caixas de passagem e cabo PP.',
+    alertas: ['Fonte: slide 5 da proposta e lista de itens enviada como imagem.']
+  };
+  const fort = {
+    id: uid(), nome: 'Fort Câmeras', modalidade: 'Venda', revisar: false,
+    itens: [
+      I('Câmeras VIP IP FC+1230 Intelbras', 20, 432, 'equip', { origQtd: 32 }),
+      I('Gravador digital de vídeo NVR 1532 Intelbras', 1, 2870, 'equip'),
+      I('HD de 8 TB Skyhawk Seagate', 2, 2758, 'equip'),
+      I('Gabinete rack parede 8U desmontável', 1, 880, 'equip'),
+      I('Filtro de linha 5 entradas Intelbras', 1, 79, 'equip'),
+      I('Switch PoE 18 portas', 2, 1472, 'equip'),
+      I('Cabos LAN Cat 6 UTP', 10, 1120, 'equip'),
+      I('Caixas de passagem V Box 1100E Intelbras', 20, 30, 'equip',
+        { origQtd: 32, obs: 'A proposta imprime quantidade 11 e total R$ 960,00 (= 32 × R$ 30,00). Interpretado como uma por câmera.' }),
+      I('Bandeja fixa para rack 40 mm', 1, 220, 'equip'),
+      I('Abraçadeira nylon M (100 un.)', 3, 70, 'equip'),
+      I('Fitas isolantes 30 m', 4, 25, 'equip'),
+      I('Mão de obra especializada para instalação', 1, 5600, 'inst'),
+      I('Manutenção mensal com garantia (equipamentos por conta da contratada)', 12, 800, 'mensal',
+        { obs: 'A Fort cota R$ 500,00 por mês quando o equipamento é do contratante, e R$ 800,00 quando é dela (comodato).' })
+    ],
+    nota: '',
+    alertas: ['Não cotou refletores nem monitoramento.']
+  };
+  const xp = {
+    id: uid(), nome: 'XP Segurança', modalidade: 'Venda', revisar: false,
+    itens: [
+      I('DVR 16 canais Lite 1U H265 Hikvision', 1, 1794.60, 'equip'),
+      I('HD 2 TB', 1, 2406.16, 'equip'),
+      I('Câmera speed dome IP 2 MP 150 m 32x DS-2DE5232W-AE', 0, 8839.94, 'equip', { origQtd: 2 }),
+      I('Câmera IP bullet 4 mm 2 MP 50 m DS-2CD1T23G2-LIUFSL', 20, 556.20, 'equip', { origQtd: 4 }),
+      I('Câmera bullet IP 2,8 mm 2 MP 20 m DS-2CD1021G2-LUI', 0, 502.20, 'equip', { origQtd: 3 }),
+      I('Power balun 16 canais', 1, 1191.73, 'equip'),
+      I('Caixas de cabo LAN Cat 6e', 8, 1582.20, 'equip'),
+      I('Caixa organizadora para conectores', 10, 12, 'equip'),
+      I('Conector RJ 45 (60 un.)', 1, 78.90, 'equip'),
+      I('Régua técnica', 1, 179, 'equip'),
+      I('Mini rack parede horizontal', 1, 947, 'equip'),
+      I('Canaleta fina', 2, 22, 'equip'),
+      I('Canaleta grossa', 2, 66, 'equip'),
+      I('Pacote de abraçadeira', 3, 48, 'equip'),
+      I('Refletores 400 W', 8, 229, 'equip', { origQtd: 15 }),
+      I('Relés fotocélula', 8, 99, 'equip', { origQtd: 15 }),
+      I('Cabo PP (para os refletores)', 8, 309.76, 'equip', { origQtd: 15 }),
+      I('Serviços especializados de câmeras e refletores (instalação)', 1, 10000, 'inst'),
+      I('Monitoramento de CFTV com viatura e manutenção mensal', 12, 2500, 'mensal')
+    ],
+    nota: '',
+    alertas: ['Total impresso R$ 60.672,67; as linhas somam R$ 61.472,67 com instalação de R$ 10.800,00.', 'Refletores: a lista técnica diz 200 W e o orçamento cobra 400 W.']
+  };
+  return { params: { limite: 71280.56, metodo: 'INC' }, justificativa: '', props: [protemaxi, fort, xp] };
+}
+
+
+/* ===== interface ===== */
+const $ = (s, r) => (r || document).querySelector(s);
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const NUM = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = v => (v == null ? 'n/d' : BRL.format(v)).replace(/ /g, ' ');
+const fmtN = v => NUM.format(v || 0);
+const sign = v => (v > 0 ? '+ ' : v < 0 ? '− ' : '') + fmt(Math.abs(v));
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in (props || {})) {
+    const v = props[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'text') e.textContent = v;
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat().forEach(c => { if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c)); });
+  return e;
+}
+
+const KEY = 'panorama_v1';
+let S;
+function load() {
+  try { const t = localStorage.getItem(KEY); if (t) { const o = JSON.parse(t); if (o && Array.isArray(o.props) && o.params) {
+    o.props = o.props.filter(p => !(p.nome === 'Nova proposta' && !(p.itens || []).length));
+    o.props.forEach(p => { if (/^Protemaxi/i.test(p.nome) && Array.isArray(p.itens) && !p.itens.some(i => i.grupo === 'comodato')) p.itens = comodatoItens().concat(p.itens); });
+    o.props.forEach(p => (p.itens || []).forEach(i => { if (i.obs && i.obs.indexOf('A linha de serviços da proposta traz') === 0) delete i.obs; }));
+    return o; } } } catch (e) {}
+  return seed();
+}
+let tmr;
+function save() { clearTimeout(tmr); tmr = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 200); }
+
+/* ---------- Parte 1: panorama ---------- */
+let focusId = null;
+function renderCards() {
+  const box = $('#cards'), sl = box.scrollLeft;
+  box.replaceChildren(...S.props.map(cardFor));
+  box.scrollLeft = sl;
+  if (focusId) { const el = $('[data-f="' + focusId + '"]'); if (el) { el.focus(); el.select && el.select(); } focusId = null; }
+}
+
+function cardFor(p) {
+  const upd = () => updateDerived();
+  const nome = h('input', { class: 'nome', value: p.nome, 'aria-label': 'Nome da empresa', onchange: e => { p.nome = e.target.value; upd(); } });
+  const mod = h('select', { 'aria-label': 'Modalidade', onchange: e => { p.modalidade = e.target.value; save(); } },
+    ['Venda', 'Comodato', 'Locação'].map(m => h('option', { value: m, selected: m === p.modalidade }, m)));
+  let delBtn;
+  delBtn = h('button', { class: 'ghost', title: 'Remover proposta', onclick: () => {
+    if (delBtn.dataset.c) { S.props = S.props.filter(x => x.id !== p.id); renderCards(); updateDerived(); return; }
+    delBtn.dataset.c = 1; delBtn.textContent = 'Remover?';
+    setTimeout(() => { delBtn.textContent = '✕'; delete delBtn.dataset.c; }, 3500);
+  } }, '✕');
+  const head = h('div', { class: 'card-head' }, nome, mod, p.revisar ? h('span', { class: 'badge warn' }, 'revisar') : null, delBtn);
+
+  const groups = GR.map(g => {
+    const its = p.itens.filter(i => i.grupo === g.k);
+    if (g.soQtd && !its.length && p.modalidade !== 'Comodato') return null;
+    const ghead = h('div', { class: 'grp-h' }, h('h3', {}, g.n), g.soQtd ? h('span', { class: 'sub' }, 'sem preço na proposta') : h('span', { class: 'sub', 'data-sub': p.id + ':' + g.k }));
+    const hdr = g.soQtd ? h('div', { class: 'row hdr so' }, h('span', {}, 'Item'), h('span', { style: 'text-align:right' }, g.q), h('span'))
+      : h('div', { class: 'row hdr' }, h('span', {}, 'Item'), h('span', { style: 'text-align:right' }, g.q), h('span', { style: 'text-align:right' }, 'Unitário'), h('span', { style: 'text-align:right' }, 'Total'), h('span'));
+    const rows = its.map(it => itemRow(p, it));
+    const add = h('button', { class: 'add ghost', onclick: () => {
+      const n = { id: uid(), desc: 'Novo item', qtd: 1, unit: 0, grupo: g.k, origQtd: null };
+      p.itens.push(n); focusId = n.id; renderCards(); updateDerived();
+    } }, '+ incluir item');
+    return h('div', { class: 'grp' }, ghead, its.length ? hdr : null, rows, add);
+  });
+
+  const foot = h('div', { class: 'card-foot' }, h('span', {}, 'Total da proposta'), h('b', { 'data-pt': p.id }));
+  const tools = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px' },
+    h('button', { class: 'ghost', onclick: () => {
+      p.itens = p.itens.filter(i => i.origQtd != null);
+      p.itens.forEach(i => { i.qtd = i.origQtd; });
+      renderCards(); updateDerived();
+    } }, 'Restaurar quantidades cotadas'),
+    h('button', { onclick: () => openRep(p.id) }, 'Relatório de itens e quantidades'),
+    p.revisar ? h('button', { class: 'ghost', onclick: () => { p.revisar = false; renderCards(); save(); } }, 'Marcar como conferida') : null);
+  const alerts = (p.alertas && p.alertas.length) ? h('ul', { class: 'alerts' }, p.alertas.map(a => h('li', {}, a))) : null;
+  const nota = h('div', { class: 'nota' }, h('label', {}, 'Observações da proposta'),
+    h('textarea', { rows: 2, 'aria-label': 'Observações', oninput: e => { p.nota = e.target.value; save(); } }, p.nota || ''));
+  return h('div', { class: 'card' }, head, groups, foot, tools, alerts, nota);
+}
+
+function itemRow(p, it) {
+  const desc = h('input', { value: it.desc, 'data-f': it.id, 'aria-label': 'Descrição', oninput: e => { it.desc = e.target.value; save(); } });
+  const qtd = h('input', { class: 'num', value: String(it.qtd).replace('.', ','), inputmode: 'decimal', 'aria-label': 'Quantidade',
+    oninput: e => { it.qtd = parseBR(e.target.value); updateDerived(); } });
+  const unit = h('input', { class: 'num', value: fmtN(it.unit), inputmode: 'decimal', 'aria-label': 'Valor unitário',
+    oninput: e => { it.unit = parseBR(e.target.value); updateDerived(); }, onblur: e => { e.target.value = fmtN(it.unit); } });
+  const tot = h('span', { class: 'tot', 'data-t': it.id });
+  const del = h('button', { class: 'ghost', title: 'Remover item', 'aria-label': 'Remover item', onclick: () => {
+    p.itens = p.itens.filter(x => x.id !== it.id); renderCards(); updateDerived();
+  } }, '✕');
+  const note = h('div', { class: 'sub-note' }, h('span', { class: 'badge', 'data-b': it.id }), it.obs ? h('span', {}, it.obs) : null);
+  const so = it.grupo === 'comodato';
+  return h('div', {}, so ? h('div', { class: 'row so' }, desc, qtd, del) : h('div', { class: 'row' }, desc, qtd, unit, tot, del), note);
+}
+
+function updateDerived() {
+  S.props.forEach(p => {
+    p.itens.forEach(it => {
+      const t = $('[data-t="' + it.id + '"]'); if (t) t.textContent = fmt(itemTotal(it));
+      const b = $('[data-b="' + it.id + '"]');
+      if (b) {
+        if (it.origQtd == null) { b.textContent = 'novo'; b.className = 'badge ok'; }
+        else if (Number(it.qtd) !== Number(it.origQtd)) { b.textContent = 'cotado: ' + String(it.origQtd).replace('.', ','); b.className = 'badge warn'; }
+        else { b.textContent = ''; b.className = 'badge'; b.style.display = 'none'; return; }
+        b.style.display = '';
+      }
+    });
+    GR.forEach(g => { const s = $('[data-sub="' + p.id + ':' + g.k + '"]'); if (s) s.textContent = fmt(groupTotal(p, g.k)); });
+    const pt = $('[data-pt="' + p.id + '"]'); if (pt) pt.textContent = fmt(propTotal(p));
+  });
+  renderStrip(); renderCalc(); save();
+}
+
+function renderStrip() {
+  $('#strip').replaceChildren(...S.props.map(p => h('div', { class: 'chip' }, h('span', {}, p.nome + ' · ' + p.modalidade), h('b', {}, fmt(propTotal(p))))));
+}
+
+/* ---------- Parte 2: planilha e cálculos ---------- */
+function renderCalc() {
+  const AT = S.props.filter(p => propTotal(p) > 0), vazias = S.props.length - AT.length;
+  const R = calc(AT, S.params), box = $('#calc'), out = [];
+  if (vazias) out.push(h('div', { class: 'warnbox' }, vazias + (vazias > 1 ? ' propostas sem itens ficam de fora' : ' proposta sem itens fica de fora') + ' da planilha e dos cálculos até receberem valores.'));
+  if (R.n < 3) out.push(h('div', { class: 'warnbox' }, R.n < 2
+    ? 'Inclua ao menos duas propostas para calcular quartis. O ideal são três ou mais.'
+    : 'Com apenas duas propostas, quartis e limites têm pouco significado. O ideal são três ou mais.'));
+  if (R.erro) out.push(h('div', { class: 'warnbox' }, R.erro));
+
+  // planilha de composição
+  const usedG = GR.filter(g => !g.soQtd && AT.some(p => p.itens.some(i => i.grupo === g.k)));
+  const th = [h('th', {}, 'Serviço'), ...AT.map(p => h('th', {}, p.nome))];
+  const trs = usedG.map(g => h('tr', {}, h('td', {}, g.n), ...AT.map(p => h('td', { class: 'm' }, fmt(groupTotal(p, g.k))))));
+  trs.push(h('tr', { class: 'total' }, h('td', {}, 'TOTAL'), ...AT.map(p => h('td', { class: 'm' }, fmt(propTotal(p))))));
+  if (R.li != null) trs.push(h('tr', {}, h('td', {}, 'Em relação aos limites'), ...R.vals.map(x =>
+    h('td', {}, h('span', { class: 'badge ' + (x.dentro ? 'ok' : 'bad') }, x.dentro ? 'dentro' : 'fora (excluída)')))));
+  out.push(h('div', { class: 'tablewrap' }, h('table', {}, h('thead', {}, h('tr', {}, th)), h('tbody', {}, trs))));
+
+  if (R.q1 != null) {
+    const kv = (k, v) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v));
+    const stat = h('div', { class: 'box' }, h('h3', {}, 'Estatística sobre o valor global'),
+      kv('Propostas', String(R.n)), kv('Q1', fmt(R.q1)), kv('Q3', fmt(R.q3)), kv('IQR (Q3 − Q1)', fmt(R.iqr)),
+      kv('Limite inferior (Q1 − 1,5 × IQR)', fmt(R.li)), kv('Limite superior (Q3 + 1,5 × IQR)', fmt(R.ls)),
+      kv('Propostas na cesta saneada', R.cesta.length + ' de ' + R.n));
+    const lim = Number(S.params.limite) || 0;
+    const res = (nome, m) => m ? h('div', { class: 'box res ' + (m.dentro ? 'ok' : 'bad') }, h('h3', {}, nome + ' da cesta saneada'),
+      h('div', { class: 'big' }, fmt(m.v)),
+      h('div', { class: 'st' }, m.dentro ? 'Dentro do limite' : 'Acima do limite'),
+      h('div', { class: 'msg' }, fmt(Math.abs(m.dif)) + (m.dif <= 0 ? ' abaixo' : ' acima') + ' de ' + fmt(lim))) : null;
+    out.push(h('div', { class: 'grid2' }, stat, res('Média', R.media), res('Mediana', R.mediana)));
+    if (R.fav) out.push(h('div', { class: 'box' }, h('h3', {}, 'Referência mais favorável'),
+      h('div', { class: 'kv' }, h('span', {}, 'Menor valor entre média e mediana'), h('b', {}, R.fav.nome + ': ' + fmt(R.fav.v))),
+      h('div', { class: 'kv' }, h('span', {}, 'Situação em relação ao limite do RILC'),
+        h('span', { class: 'badge ' + (R.fav.dentro ? 'ok' : 'bad') }, R.fav.dentro ? 'dentro do limite' : 'acima do limite')),
+      h('div', { class: 'msg' }, 'O critério de escolha entre média e mediana vem da norma do seu órgão. Registre-o no campo de justificativa acima.')));
+  }
+  box.replaceChildren(...out);
+}
+
+/* ---------- exportação ---------- */
+async function exportCsv() {
+  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  const n = v => String(r2(v)).replace('.', ',');
+  const L = [['Proposta', 'Modalidade', 'Grupo', 'Item', 'Qtd', 'Unitário', 'Total', 'Qtd cotada'].join(';')];
+  S.props.forEach(p => p.itens.forEach(i => L.push([q(p.nome), p.modalidade, q((GR.find(g => g.k === i.grupo) || {}).n), q(i.desc), String(i.qtd).replace('.', ','), n(i.unit), n(itemTotal(i)), i.origQtd == null ? 'novo' : String(i.origQtd).replace('.', ',')].join(';'))));
+  L.push('');
+  S.props.forEach(p => L.push([q('Total ' + p.nome), '', '', '', '', '', n(propTotal(p)), ''].join(';')));
+  const R = calc(S.props, S.params);
+  if (R.q1 != null) {
+    L.push('');
+    [['Q1', R.q1], ['Q3', R.q3], ['IQR', R.iqr], ['Limite inferior', R.li], ['Limite superior', R.ls], ['Média', R.media && R.media.v], ['Mediana', R.mediana && R.mediana.v], ['Limite RILC', Number(S.params.limite)]]
+      .forEach(([k, v]) => L.push([q(k), '', '', '', '', '', v == null ? '' : n(v), ''].join(';')));
+    if (S.justificativa) L.push(q('Justificativa') + ';' + q(S.justificativa));
+  }
+  await saveFile('panorama-propostas.csv', '\ufeff' + L.join('\r\n'));
+}
+
+/* ---------- relatório de itens e quantidades ---------- */
+let repId = null;
+const REL0 = { titulo: 'Solicitação de cotação', ref: '', msg: 'Prezados, solicitamos a cotação dos itens e quantidades abaixo. Favor informar o valor unitário e o total de cada item, mantendo as quantidades indicadas.', valores: true };
+const fmtQ = v => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+function repItens(p) { return GR.map(g => ({ g, its: p.itens.filter(i => i.grupo === g.k && (Number(i.qtd) > 0 || (g.soQtd && i.obs))) })).filter(x => x.its.length); }
+function repRender() {
+  const p = S.props.find(x => x.id === repId); if (!p) return;
+  const R = S.rel, doc = $('#repDoc'), cols = R.valores;
+  const kids = [h('h1', {}, R.titulo || 'Solicitação de cotação'), h('p', { class: 'emp' }, p.nome)];
+  if (R.ref) kids.push(h('p', { class: 'ref' }, 'Referência: ' + R.ref));
+  if (R.msg) kids.push(h('p', { class: 'msg' }, R.msg));
+  const blocks = repItens(p);
+  if (!blocks.length) kids.push(h('p', {}, 'Esta proposta não tem itens com quantidade.'));
+  blocks.forEach(({ g, its }) => {
+    kids.push(h('h3', {}, g.n));
+    kids.push(h('table', {},
+      h('thead', {}, h('tr', {}, h('th', { class: 'nn' }, 'Nº'), h('th', {}, 'Item'), h('th', { class: 'n' }, g.q === 'Meses' ? 'Meses' : 'Quantidade'),
+        cols ? h('th', { class: 'v' }, 'Valor unitário (R$)') : null, cols ? h('th', { class: 'v' }, 'Valor total (R$)') : null)),
+      h('tbody', {}, its.map((i, k) => h('tr', {}, h('td', { class: 'nn' }, String(k + 1)), h('td', {}, i.desc, (g.soQtd && !(Number(i.qtd) > 0) && i.obs) ? h('div', { style: 'font-size:.85em;font-style:italic' }, 'Obs.: ' + i.obs) : null), h('td', { class: 'n' }, (g.soQtd && !(Number(i.qtd) > 0)) ? 'a confirmar' : fmtQ(i.qtd)),
+        cols ? h('td', {}, '') : null, cols ? h('td', {}, '') : null)))));
+  });
+  if (cols) kids.push(h('div', { class: 'sg' }, h('div', {}, 'Valor global da proposta (R$): ______________________'), h('div', {}, 'Validade da proposta: ______________________'), h('div', {}, 'Observações da empresa:'), h('div', {}, '______________________________________________________________')));
+  doc.replaceChildren(...kids);
+}
+function openRep(id) {
+  repId = id; S.rel = Object.assign({}, REL0, S.rel || {});
+  $('#rTitulo').value = S.rel.titulo; $('#rRef').value = S.rel.ref; $('#rMsg').value = S.rel.msg; $('#rVal').checked = !!S.rel.valores;
+  repRender(); $('#rep').classList.add('open'); $('#rep').scrollTop = 0;
+}
+function closeRep() { $('#rep').classList.remove('open'); }
+function repText() {
+  const p = S.props.find(x => x.id === repId); if (!p) return '';
+  const R = S.rel, L = [R.titulo || 'Solicitação de cotação', p.nome];
+  if (R.ref) L.push('Referência: ' + R.ref);
+  if (R.msg) L.push('', R.msg);
+  repItens(p).forEach(({ g, its }) => { L.push('', g.n.toUpperCase()); its.forEach((i, k) => L.push((k + 1) + '. ' + i.desc + ' — ' + ((g.soQtd && !(Number(i.qtd) > 0)) ? 'quantidade a confirmar (' + i.obs + ')' : fmtQ(i.qtd) + (g.q === 'Meses' ? ' meses' : ' un.')))); });
+  return L.join('\n');
+}
+async function repCopy(btn) {
+  const t = repText();
+  try { await navigator.clipboard.writeText(t); btn.textContent = 'Copiado'; }
+  catch (e) { const ta = h('textarea', { rows: 8, style: 'width:100%' }); ta.value = t; $('#repDoc').prepend(ta); ta.select(); btn.textContent = 'Selecione e copie (Ctrl+C)'; }
+  setTimeout(() => { btn.textContent = 'Copiar texto'; }, 2500);
+}
+async function repCsv() {
+  const p = S.props.find(x => x.id === repId); if (!p) return;
+  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  const L = [['Grupo', 'Nº', 'Item', 'Quantidade', 'Valor unitário (R$)', 'Valor total (R$)'].join(';')];
+  repItens(p).forEach(({ g, its }) => its.forEach((i, k) => L.push([q(g.n), k + 1, q(i.desc), (g.soQtd && !(Number(i.qtd) > 0)) ? q('a confirmar - ' + i.obs) : String(i.qtd).replace('.', ','), '', ''].join(';'))));
+  await saveFile('itens-' + p.nome.replace(/[^\w]+/g, '-').toLowerCase() + '.csv', '﻿' + L.join('\r\n'));
+}
+async function saveFile(name, data) {
+  const dl = await cap('downloads');
+  if (dl) { try { await dl.save({ filename: name, data }); } catch (e) {} return; }
+  const a = h('a', { href: URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' })), download: name });
+  document.body.append(a); a.click(); a.remove();
+}
+
+/* ---------- capacidades ---------- */
+async function cap(name) { try { return window.claude && window.claude.use ? await window.claude.use(name) : null; } catch (e) { return null; } }
+
+/* ---------- leitura de propostas ---------- */
+const loadScript = src => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('script')); document.head.appendChild(s); });
+async function pdfjs() {
+  if (window.pdfjsLib) return window.pdfjsLib;
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+const toBlob = c => new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+
+async function gather(files, maxImgs, say) {
+  let text = '', images = [];
+  for (const f of files) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') {
+      say('Abrindo ' + f.name + '…');
+      const lib = await pdfjs();
+      const doc = await lib.getDocument({ data: await f.arrayBuffer() }).promise;
+      let t = '';
+      for (let i = 1; i <= doc.numPages; i++) {
+        const pg = await doc.getPage(i), tc = await pg.getTextContent();
+        t += '\n[página ' + i + ']\n' + tc.items.map(x => x.str).join(' ');
+      }
+      if (t.replace(/\s|\[página \d+\]/g, '').length > 400) text += '\n\n=== ' + f.name + ' ===' + t;
+      else {
+        say(f.name + ' parece ser imagem; convertendo páginas…');
+        for (let i = 1; i <= Math.min(doc.numPages, 6) && images.length < maxImgs; i++) {
+          const pg = await doc.getPage(i), vp = pg.getViewport({ scale: 1.4 }), cv = document.createElement('canvas');
+          cv.width = vp.width; cv.height = vp.height;
+          await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+          images.push(await toBlob(cv));
+        }
+        text += '\n\n=== ' + f.name + ' (lido como imagem) ===';
+      }
+    } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+      if (images.length < maxImgs) images.push(f);
+      text += '\n\n=== ' + f.name + ' (imagem anexa) ===';
+    } else {
+      text += '\n\n=== ' + f.name + ' ===\n' + await f.text();
+    }
+  }
+  return { text: text.slice(0, 200000), images };
+}
+
+const PROMPT = `Você lê propostas comerciais brasileiras de CFTV/segurança eletrônica e monta uma tabela de preços. Leia o material abaixo (texto e imagens de UMA proposta) e responda SOMENTE com um objeto JSON:
+{"nome": string, "modalidade": "Venda"|"Comodato"|"Locação", "totalImpresso": number|null,
+ "itens": [{"desc": string, "qtd": number, "unit": number, "grupo": "inst"|"equip"|"mensal", "obs": string}],
+ "nota": string, "alertas": [string]}
+Regras:
+- Números com ponto decimal (1234.56), sem "R$". "unit" é o valor unitário; "qtd" a quantidade. Se só houver o valor total da linha, use qtd 1 e unit igual ao total.
+- grupo "inst": mão de obra, instalação, taxa de instalação. grupo "equip": equipamentos, materiais e infraestrutura. grupo "mensal": valores mensais (manutenção, monitoramento, mensalidade de comodato); nesses, qtd é o número de meses (use 12 se a proposta não disser) e unit o valor mensal.
+- Em comodato, os equipamentos cedidos não têm preço: NÃO os liste como itens. Descreva-os em "nota". Liste só instalação e mensalidade.
+- Não invente valores nem itens. Use "obs" (pode ser "") para dúvidas daquele item, por exemplo quando quantidade, unitário e total impresso não conferem.
+- "totalImpresso": o total geral impresso na proposta, se houver. Em "alertas", liste inconsistências que você viu (soma diferente do total impresso, quantidade incompatível com o total, erros de digitação).
+Se houver mais de uma opção de preço (por exemplo, equipamento do contratante ou da contratada), use a que vale para a modalidade e cite a outra em "obs".`;
+
+let ctl = null;
+async function readProposal() {
+  const say = t => { $('#mStatus').textContent = t; };
+  const files = [...$('#mFiles').files];
+  if (!files.length) { say('Escolha ao menos um arquivo, ou use "Criar em branco".'); return; }
+  const sample = await cap('sample');
+  if (!sample) { say('A leitura automática não está disponível aqui. Use "Criar em branco" e preencha os itens.'); return; }
+  const btn = $('#mRead'); btn.disabled = true; ctl = new AbortController();
+  try {
+    let maxImgs = 0; try { const l = await sample.limits(); maxImgs = l.images ? l.images.maxCount : 0; } catch (e) {}
+    const g = await gather(files, maxImgs, say);
+    say('Lendo a proposta… pode levar até um minuto.');
+    const opts = { signal: ctl.signal };
+    if (g.images.length) opts.images = g.images;
+    const r = await sample.json(PROMPT + '\n\nModalidade informada pelo usuário: ' + $('#mMod').value + '\nNome informado: ' + ($('#mNome').value || '(não informado)') + '\n\nMATERIAL:\n' + g.text, opts);
+    if (!r || !Array.isArray(r.itens) || !r.itens.length) throw { code: 'vazio' };
+    const itens = r.itens.map(i => {
+      const q = parseBR(i.qtd) || 1;
+      return { id: uid(), desc: String(i.desc || 'Item'), qtd: q, unit: parseBR(i.unit), grupo: ['inst', 'equip', 'mensal'].includes(i.grupo) ? i.grupo : 'equip', origQtd: q, obs: i.obs || '' };
+    });
+    const p = { id: uid(), nome: $('#mNome').value || r.nome || 'Nova proposta', modalidade: ['Venda', 'Comodato', 'Locação'].includes(r.modalidade) ? r.modalidade : $('#mMod').value,
+      revisar: true, itens, nota: r.nota || '', alertas: Array.isArray(r.alertas) ? r.alertas.map(String) : [] };
+    const soma = propTotal(p);
+    if (r.totalImpresso && Math.abs(soma - Number(r.totalImpresso)) > 0.01) p.alertas.push('A soma dos itens (' + fmt(soma) + ') difere do total impresso (' + fmt(Number(r.totalImpresso)) + ').');
+    S.props.push(p); closeModal(); renderCards(); updateDerived();
+    const cs = $('#cards'); cs.scrollTo({ left: cs.scrollWidth, behavior: 'smooth' });
+  } catch (e) {
+    const m = { cancelled: 'Leitura cancelada.', not_granted: 'A leitura por Claude não foi permitida nesta visualização.', rate_limited: 'Limite de uso atingido. Tente mais tarde.', invalid_json: 'Não consegui montar a tabela a partir do material. Tente novamente ou use "Criar em branco".', vazio: 'Não encontrei itens com preço no material.', images_unavailable: 'Este arquivo precisa ser lido como imagem, e isso não está disponível aqui.' };
+    say(m[e && e.code] || 'Não foi possível ler o arquivo. ' + (e && e.message ? e.message : ''));
+  } finally { btn.disabled = false; ctl = null; }
+}
+
+function openModal() { $('#mStatus').textContent = ''; $('#mFiles').value = ''; $('#mNome').value = ''; $('#modal').classList.add('open'); $('#mNome').focus(); }
+function closeModal() { if (ctl) ctl.abort(); $('#modal').classList.remove('open'); }
+
+/* ---------- início ---------- */
+function init() {
+  S = load();
+  $('#pLimite').value = fmtN(S.params.limite);
+  $('#pMetodo').value = S.params.metodo;
+  $('#pJust').value = S.justificativa || '';
+  $('#pLimite').addEventListener('input', e => { S.params.limite = parseBR(e.target.value); renderCalc(); save(); });
+  $('#pLimite').addEventListener('blur', e => { e.target.value = fmtN(S.params.limite); });
+  $('#pMetodo').addEventListener('change', e => { S.params.metodo = e.target.value; renderCalc(); save(); });
+  $('#pJust').addEventListener('input', e => { S.justificativa = e.target.value; save(); });
+  $('#btnAdd').addEventListener('click', openModal);
+  $('#mCancel').addEventListener('click', closeModal);
+  $('#mRead').addEventListener('click', readProposal);
+  $('#mBlank').addEventListener('click', () => {
+    if (!$('#mNome').value.trim()) { $('#mStatus').textContent = 'Digite o nome da empresa para criar a proposta.'; $('#mNome').focus(); return; }
+    const p = { id: uid(), nome: $('#mNome').value.trim(), modalidade: $('#mMod').value, revisar: false, itens: [], nota: '', alertas: [] };
+    S.props.push(p); closeModal(); renderCards(); updateDerived();
+  });
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#modal').classList.contains('open')) closeModal(); else closeRep(); } });
+  $('#btnCsv').addEventListener('click', exportCsv);
+  $('#rClose').addEventListener('click', closeRep);
+  $('#rPrint').addEventListener('click', () => window.print());
+  $('#rCopy').addEventListener('click', e => repCopy(e.currentTarget));
+  $('#rCsv').addEventListener('click', repCsv);
+  const rset = (id, k, f) => $(id).addEventListener('input', e => { S.rel = Object.assign({}, REL0, S.rel || {}); S.rel[k] = f(e.target); save(); repRender(); });
+  rset('#rTitulo', 'titulo', t => t.value); rset('#rRef', 'ref', t => t.value); rset('#rMsg', 'msg', t => t.value); rset('#rVal', 'valores', t => t.checked);
+  const rb = $('#btnReset');
+  rb.addEventListener('click', () => {
+    if (rb.dataset.c) { S = seed(); delete rb.dataset.c; rb.textContent = 'Restaurar exemplo';
+      $('#pLimite').value = fmtN(S.params.limite); $('#pMetodo').value = S.params.metodo; $('#pJust').value = ''; renderCards(); updateDerived(); return; }
+    rb.dataset.c = 1; rb.textContent = 'Confirmar: descartar alterações';
+    setTimeout(() => { delete rb.dataset.c; rb.textContent = 'Restaurar exemplo'; }, 4000);
+  });
+  renderCards(); updateDerived();
+}
+init();
+
+</script>
+
+</body>
+</html>
